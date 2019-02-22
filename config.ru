@@ -6,10 +6,10 @@ if dev
 end
 
 require 'rack/unreloader'
-Unreloader = Rack::Unreloader.new(subclasses: %w'Roda Sequel::Model', logger: logger, reload: dev){App}
+Unreloader = Rack::Unreloader.new(subclasses: %w'Roda Sequel::Model', logger: logger, reload: dev){MyApp}
 require_relative 'models'
-Unreloader.require('app.rb'){'App'}
-run(dev ? Unreloader : App.freeze.app)
+Unreloader.require('app.rb'){'MyApp'}
+run(dev ? Unreloader : MyApp.freeze.app)
 
 unless dev
   begin
@@ -20,3 +20,6 @@ unless dev
     Refrigerator.freeze_core
   end
 end
+
+# Roda.route { "Hello world!" }
+# run Roda.app

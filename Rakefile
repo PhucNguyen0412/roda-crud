@@ -9,6 +9,14 @@ migrate = lambda do |env, version|
   Sequel::Migrator.apply(DB, 'migrate', version)
 end
 
+desc 'database-related tasks'
+namespace :db do
+  desc 'create database'
+  task :create do
+    %x( createdb -E UTF8 -U postgres -h localhost my_app_development )
+  end
+end
+
 desc "Migrate test database to latest version"
 task :test_up do
   migrate.call('test', nil)
@@ -103,41 +111,4 @@ task "annotate" do
   DB.loggers.clear
   require 'sequel/annotate'
   Sequel::Annotate.annotate(Dir['models/*.rb'])
-end
-
-last_line = __LINE__
-# Utils
-
-desc "give the application an appropriate name"
-task :setup, [:name] do |t, args|
-  unless name = args[:name]
-    $stderr.puts "ERROR: Must provide a name argument: example: rake \"setup[AppName]\""
-    exit(1)
-  end
-
-  require 'securerandom'
-  lower_name = name.gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase
-  upper_name = lower_name.upcase
-  random_bytes = lambda{[SecureRandom.random_bytes(64).gsub("\x00"){((rand*255).to_i+1).chr}].pack('m').inspect}
-
-  File.write('.env.rb', <<END)
-case ENV['RACK_ENV'] ||= 'development'
-when 'test'
-  ENV['#{upper_name}_SESSION_SECRET'] ||= #{random_bytes.call}.unpack('m')[0]
-  ENV['#{upper_name}_DATABASE_URL'] ||= "postgres:///#{lower_name}_test?user=#{lower_name}"
-when 'production'
-  ENV['#{upper_name}_SESSION_SECRET'] ||= #{random_bytes.call}.unpack('m')[0]
-  ENV['#{upper_name}_DATABASE_URL'] ||= "postgres:///#{lower_name}_production?user=#{lower_name}"
-else
-  ENV['#{upper_name}_SESSION_SECRET'] ||= #{random_bytes.call}.unpack('m')[0]
-  ENV['#{upper_name}_DATABASE_URL'] ||= "postgres:///#{lower_name}_development?user=#{lower_name}"
-end
-END
-
-  %w'views/layout.erb routes/prefix1.rb config.ru app.rb db.rb spec/web/spec_helper.rb'.each do |f|
-    File.write(f, File.read(f).gsub('App', name).gsub('APP', upper_name))
-  end
-
-  File.write(__FILE__, File.read(__FILE__).split("\n")[0...(last_line-2)].join("\n") << "\n")
-  File.delete('public/.gitkeep')
 end
